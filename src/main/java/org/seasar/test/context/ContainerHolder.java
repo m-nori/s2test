@@ -63,9 +63,6 @@ public class ContainerHolder {
      * @return コンテナ
      */
     public S2Container getContainer(String rootDicon) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("return contaner dicon:" + rootDicon);
-        }
         S2Container container = containerMap.get(rootDicon);
         if (container == null) {
             container = loadContainer(rootDicon);

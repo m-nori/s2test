@@ -5,6 +5,8 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import javax.servlet.Servlet;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -15,11 +17,18 @@ import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
+import org.seasar.framework.container.S2Container;
 import org.seasar.framework.log.Logger;
+import org.seasar.framework.mock.servlet.MockHttpServletRequest;
+import org.seasar.framework.mock.servlet.MockHttpServletResponse;
+import org.seasar.framework.mock.servlet.MockServletConfig;
+import org.seasar.framework.mock.servlet.MockServletContext;
 import org.seasar.test.S2JUnit4ClassRunner;
+import org.seasar.test.annotation.ContextConfiguration;
 import org.seasar.test.annotation.InstanceRule;
 import org.seasar.test.annotation.RootDicon;
 import org.seasar.test.context.TestContext;
+import org.seasar.test.context.include.HttpServletTestInclude;
 import org.seasar.test.rule.S2InstanceRule;
 import org.seasar.test.rule.S2TestRule;
 
@@ -75,6 +84,39 @@ public class S2JUnit4ClassRunnerExample {
     @RunWith(S2JUnit4ClassRunner.class)
     @RootDicon()
     public static class 各ルールが設定されている場合 {
+        public static class S2PrepareInstanceRuleSapmle extends S2InstanceRule {
+            @Override
+            public void apply(TestContext testContext) throws Exception {
+                logger.debug("S2PrepareInstanceRuleSapmle.apply()");
+            }
+        }
+
+        public static class S2MethodRuleSample extends S2TestRule {
+            @Override
+            protected void before(TestContext testContext) throws Throwable {
+                logger.debug("S2MethodRuleSample.before()");
+                logger.debug(testContext.getTestClass().getName());
+            }
+
+            @Override
+            protected void after(TestContext testContext) throws Throwable {
+                logger.debug("S2MethodRuleSample.after()");
+            }
+        }
+
+        public static class S2ClassRuleSample extends S2TestRule {
+            @Override
+            protected void before(TestContext testContext) throws Throwable {
+                logger.debug("S2ClassRuleSample.before()");
+                logger.debug(testContext.getTestClass().getName());
+            }
+
+            @Override
+            protected void after(TestContext testContext) throws Throwable {
+                logger.debug("S2ClassRuleSample.after()");
+            }
+        }
+
         @ClassRule
         public static TestRule s2ClassRule = new S2ClassRuleSample();
 
@@ -116,36 +158,30 @@ public class S2JUnit4ClassRunnerExample {
         }
     }
 
-    public static class S2PrepareInstanceRuleSapmle extends S2InstanceRule {
-        @Override
-        public void apply(TestContext testContext) throws Exception {
-            logger.debug("S2PrepareInstanceRuleSapmle.apply()");
-        }
-    }
+    @RunWith(S2JUnit4ClassRunner.class)
+    @RootDicon()
+    @ContextConfiguration(includes = { HttpServletTestInclude.class })
+    public static class ContextIncludeが設定されている場合 {
+        public S2Container container;
 
-    public static class S2MethodRuleSample extends S2TestRule {
-        @Override
-        protected void before(TestContext testContext) throws Throwable {
-            logger.debug("S2MethodRuleSample.before()");
-            logger.debug(testContext.getTestClass().getName());
-        }
+        protected MockServletContext servletContext;
 
-        @Override
-        protected void after(TestContext testContext) throws Throwable {
-            logger.debug("S2MethodRuleSample.after()");
-        }
-    }
+        protected Servlet servlet;
 
-    public static class S2ClassRuleSample extends S2TestRule {
-        @Override
-        protected void before(TestContext testContext) throws Throwable {
-            logger.debug("S2ClassRuleSample.before()");
-            logger.debug(testContext.getTestClass().getName());
-        }
+        protected MockServletConfig servletConfig;
 
-        @Override
-        protected void after(TestContext testContext) throws Throwable {
-            logger.debug("S2ClassRuleSample.after()");
+        protected MockHttpServletRequest request;
+
+        protected MockHttpServletResponse response;
+
+        @Test
+        public void test() {
+            assertThat(container, is(notNullValue()));
+            assertThat(servletContext, is(notNullValue()));
+            assertThat(servlet, is(notNullValue()));
+            assertThat(servletConfig, is(notNullValue()));
+            assertThat(request, is(notNullValue()));
+            assertThat(response, is(notNullValue()));
         }
     }
 }

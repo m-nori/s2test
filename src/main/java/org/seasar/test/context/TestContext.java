@@ -56,9 +56,6 @@ public class TestContext {
      * @return
      */
     public S2Container getContainer() {
-        if (logger.isDebugEnabled()) {
-            logger.debug("return contaner dicon:" + rootDicon);
-        }
         return containerHolder.getContainer(rootDicon);
     }
 

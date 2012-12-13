@@ -47,8 +47,14 @@ public class S2JUnit4ClassRunner extends BlockJUnit4ClassRunner {
      *            テスト対象クラス
      * @return TestContextManager
      */
-    protected TestContextManager createTestContextManager(Class<?> clazz) {
-        return new TestContextManager(getTestClass());
+    protected TestContextManager createTestContextManager(Class<?> clazz)
+            throws InitializationError {
+        try {
+            return new TestContextManager(getTestClass());
+        } catch (Exception e) {
+            logger.error(e);
+            throw new InitializationError(e);
+        }
     }
 
     /**
