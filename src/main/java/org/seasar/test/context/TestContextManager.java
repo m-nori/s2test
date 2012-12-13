@@ -8,9 +8,9 @@ import org.junit.Rule;
 import org.junit.runners.model.TestClass;
 import org.seasar.framework.log.Logger;
 import org.seasar.test.annotation.ContextConfiguration;
-import org.seasar.test.annotation.PrepareInstanceRule;
+import org.seasar.test.annotation.InstanceRule;
 import org.seasar.test.rule.DependencyInjectionRule;
-import org.seasar.test.rule.S2PrepareInstanceRule;
+import org.seasar.test.rule.S2InstanceRule;
 import org.seasar.test.rule.S2TestRule;
 
 /**
@@ -35,7 +35,7 @@ public class TestContextManager {
     private final ContainerHolder containerHolder = new ContainerHolder();
 
     /** InjectionRuleはデフォルトのPrepareInstanceRulesとして使用する。 */
-    private List<S2PrepareInstanceRule> defaultPrepareInstanceRules;
+    private List<S2InstanceRule> defaultPrepareInstanceRules;
 
     /**
      * TestContextManagerを初期化する。
@@ -111,9 +111,9 @@ public class TestContextManager {
      * @throws Exception すべての例外発生時
      */
     protected void applyPrepareInstanceRules() throws Exception {
-        List<S2PrepareInstanceRule> prepareRules =
+        List<S2InstanceRule> prepareRules =
             createPrepareInstanceRules(getTestContext().getTestInstance());
-        for (S2PrepareInstanceRule rule : prepareRules) {
+        for (S2InstanceRule rule : prepareRules) {
             try {
                 rule.apply(getTestContext());
             } catch (Exception e) {
@@ -140,9 +140,9 @@ public class TestContextManager {
      * @param target 対象オブジェクト
      * @return 取得したルール
      */
-    private List<S2PrepareInstanceRule> createPrepareInstanceRules(Object target) {
-        List<S2PrepareInstanceRule> result =
-            new ArrayList<S2PrepareInstanceRule>();
+    private List<S2InstanceRule> createPrepareInstanceRules(Object target) {
+        List<S2InstanceRule> result =
+            new ArrayList<S2InstanceRule>();
         result.addAll(getDefaultPrepareInstanceRules());
         result.addAll(retrievePrepareInstanceRules(target));
         return result;
@@ -152,10 +152,10 @@ public class TestContextManager {
      * デフォルトのPrepareInstanceRuleを返却する。
      * @return デフォルトのS2PrepareInstanceRule
      */
-    private List<S2PrepareInstanceRule> getDefaultPrepareInstanceRules() {
+    private List<S2InstanceRule> getDefaultPrepareInstanceRules() {
         if (defaultPrepareInstanceRules == null) {
             defaultPrepareInstanceRules =
-                new ArrayList<S2PrepareInstanceRule>();
+                new ArrayList<S2InstanceRule>();
             defaultPrepareInstanceRules.add(new DependencyInjectionRule());
         }
         return defaultPrepareInstanceRules;
@@ -166,11 +166,11 @@ public class TestContextManager {
      * @param target 対象インスタンス
      * @return 対象インスタンスに付与されているPrepareInstanceRule
      */
-    private List<S2PrepareInstanceRule> retrievePrepareInstanceRules(
+    private List<S2InstanceRule> retrievePrepareInstanceRules(
             Object target) {
         return getTestContext().getTestClass().getAnnotatedFieldValues(target,
-                PrepareInstanceRule.class,
-                S2PrepareInstanceRule.class);
+                InstanceRule.class,
+                S2InstanceRule.class);
     }
 
     /**

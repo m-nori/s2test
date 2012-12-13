@@ -11,7 +11,7 @@ import org.seasar.framework.util.FieldUtil;
 import org.seasar.framework.util.StringUtil;
 import org.seasar.test.context.TestContext;
 
-public class DependencyInjectionRule extends S2PrepareInstanceRule {
+public class DependencyInjectionRule extends S2InstanceRule {
 
     private static final Logger logger =
         Logger.getLogger(DependencyInjectionRule.class);
