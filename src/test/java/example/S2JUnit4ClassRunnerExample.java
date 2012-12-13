@@ -2,6 +2,7 @@ package example;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.junit.After;
@@ -13,7 +14,9 @@ import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.seasar.framework.log.Logger;
 import org.seasar.test.S2JUnit4ClassRunner;
-import org.seasar.test.annotation.ContextConfiguration;
+import org.seasar.test.annotation.RootDicon;
+import org.seasar.test.context.TestContext;
+import org.seasar.test.rule.S2TestRule;
 
 import example.logic.DummyLogic;
 
@@ -23,7 +26,7 @@ public class S2JUnit4ClassRunnerExample {
         Logger.getLogger(S2JUnit4ClassRunnerExample.class);
 
     @RunWith(S2JUnit4ClassRunner.class)
-    public static class ContextConfigurationを指定しない場合 {
+    public static class RootDiconを指定しない場合 {
 
         public DummyLogic dummyLogic;
 
@@ -49,7 +52,7 @@ public class S2JUnit4ClassRunnerExample {
 
         @Test
         public void dummyLogicにインジェクションが行われてる() {
-            assertThat(dummyLogic, is(notNullValue()));
+            assertThat(dummyLogic.dummyService, is(notNullValue()));
             String actual = dummyLogic.execute();
             assertThat(actual, is("example1"));
         }
@@ -61,15 +64,44 @@ public class S2JUnit4ClassRunnerExample {
     }
 
     @RunWith(S2JUnit4ClassRunner.class)
-    @ContextConfiguration(path = "example/ContextConfigurationを指定する場合_.dicon")
-    public static class ContextConfigurationを指定する場合 {
+    @RootDicon(path = "example/RootDiconを指定する場合_.dicon")
+    public static class RootDiconを指定する場合 {
         public DummyLogic dummyLogic;
 
         @Test
         public void dummyLogicにインジェクションが行われてる() {
-            assertThat(dummyLogic, is(notNullValue()));
+            assertThat(dummyLogic.dummyService, is(notNullValue()));
             String actual = dummyLogic.execute();
             assertThat(actual, is("example2"));
+        }
+    }
+
+    @RunWith(S2JUnit4ClassRunner.class)
+    @RootDicon()
+    public static class RootDiconを空にする場合 {
+        public DummyLogic dummyLogic;
+
+        @Test
+        public void dummyLogicにインジェクションが行われていないこと() {
+            assertThat(dummyLogic.dummyService, is(nullValue()));
+        }
+    }
+
+    @RunWith(S2JUnit4ClassRunner.class)
+    @RootDicon()
+    public static class 各ルールが設定されている場合 {
+
+    }
+
+    public static class S2MethodRuleSample extends S2TestRule {
+        @Override
+        protected void before(TestContext testContext) throws Throwable {
+            // do nothing
+        }
+
+        @Override
+        protected void after(TestContext testContext) throws Throwable {
+            // do nothing
         }
     }
 }

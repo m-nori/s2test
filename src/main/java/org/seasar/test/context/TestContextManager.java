@@ -1,12 +1,17 @@
 package org.seasar.test.context;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.runners.model.TestClass;
 import org.seasar.framework.log.Logger;
-import org.seasar.test.context.support.DependencyInjectionTestExecutionListener;
+import org.seasar.test.annotation.ContextConfiguration;
+import org.seasar.test.annotation.PrepareInstanceRule;
+import org.seasar.test.rule.DependencyInjectionRule;
+import org.seasar.test.rule.S2PrepareInstanceRule;
+import org.seasar.test.rule.S2TestRule;
 
 /**
  * テストの実行管理を行う。
@@ -16,218 +21,177 @@ import org.seasar.test.context.support.DependencyInjectionTestExecutionListener;
  * <li>テストの状態をtestContextに設定する。</li>
  * <li>テストの流れに合わせてTestExecutionListenerを呼び出す。</li>
  * </ul>
- * 
+ * <p>
+ * TODO:デフォルトのS2PrepareInstanceRuleの保持方法。
+ *
  * @author m_nori
  */
 public class TestContextManager {
-	private static final Logger logger = Logger.getLogger(TestContextManager.class);
+    private static final Logger logger =
+        Logger.getLogger(TestContextManager.class);
 
-	private final TestContext testContext;
+    private final TestContext testContext;
 
-	private final List<TestExecutionListener> testExecutionListeners = new ArrayList<TestExecutionListener>();
+    private final ContainerHolder containerHolder = new ContainerHolder();
 
-	/**
-	 * TestContextManagerを初期化する。
-	 * 
-	 * @param clazz
-	 *            テストクラス
-	 */
-	public TestContextManager(Class<?> clazz) {
-		this.testContext = new TestContext(clazz);
-		registerTestExecutionListeners(retrieveTestExecutionListeners(clazz));
-	}
+    /** InjectionRuleはデフォルトのPrepareInstanceRulesとして使用する。 */
+    private List<S2PrepareInstanceRule> defaultPrepareInstanceRules;
 
-	/**
-	 * testContextを返却する。
-	 * 
-	 * @return testContext
-	 */
-	public final TestContext getTestContext() {
-		return testContext;
-	}
+    /**
+     * TestContextManagerを初期化する。
+     *
+     * @param clazz
+     *            テストクラス
+     */
+    public TestContextManager(TestClass testClass) {
+        this.testContext = new TestContext(testClass, containerHolder);
+        initByContextConfiguration();
+    }
 
-	/**
-	 * 登録されているtestExecutionListenerを返却する。
-	 * 
-	 * @return testExecutionListeners
-	 */
-	public List<TestExecutionListener> getTestExecutionListeners() {
-		return testExecutionListeners;
-	}
+    /**
+     * testContextを返却する。
+     *
+     * @return testContext
+     */
+    public final TestContext getTestContext() {
+        return testContext;
+    }
 
-	/**
-	 * 登録されているtestExecutionListenersを逆順にして返却する。<br>
-	 * 後処理は逆順で行う必要があるのでこれを使用する。
-	 * 
-	 * @return testExecutionListenersの逆順
-	 */
-	private List<TestExecutionListener> getReversedTestExecutionListeners() {
-		List<TestExecutionListener> listenersReversed = new ArrayList<TestExecutionListener>(
-		        getTestExecutionListeners());
-		Collections.reverse(listenersReversed);
-		return listenersReversed;
-	}
+    /**
+     * テストクラス生成処理のフック処理を行う。
+     *
+     */
+    public void prepareTestClass() {
+        if (logger.isDebugEnabled()) {
+            logger.debug("prepareTestClass()");
+        }
+        prepareClassS2TestRules();
+    }
 
-	/**
-	 * {@link TestExecutionListener}の登録を行う。
-	 * 
-	 * @param testExecutionListeners
-	 */
-	public void registerTestExecutionListeners(TestExecutionListener... testExecutionListeners) {
-		for (TestExecutionListener listener : testExecutionListeners) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Registering TestExecutionListener: " + listener);
-			}
-			this.testExecutionListeners.add(listener);
-		}
-	}
+    /**
+     * テストインスタンス生成処理のフック処理を行う。
+     *
+     * @param testInstance
+     *            ベースとなるテストインスタンス
+     * @throws Exception
+     *             すべての例外発生時
+     */
+    public void prepareTestInstance(Object testInstance) throws Exception {
+        if (logger.isDebugEnabled()) {
+            logger.debug("prepareTestInstance(): instance ["
+                + testInstance
+                + "]");
+        }
+        getTestContext().setTestInstance(testInstance);
+        applyPrepareInstanceRules();
+        prepareMethodS2TestRules();
+    }
 
-	/**
-	 * 登録対象となる{@link TestExecutionListener}を返却する。
-	 * <P>
-	 * デフォルトでは以下を登録する。
-	 * <ul>
-	 * <li>{@link DependencyInjectionTestExecutionListener} : 依存関係の注入</li>
-	 * </ul>
-	 * 登録順番は意味があるので、変更する場合は注意すること。
-	 * <p>
-	 * TODO:アノテーションからTestExecutionListenerを取得できるようにする。
-	 * 
-	 * @param clazz
-	 *            テスト対象クラス
-	 * @return 登録対象となるTestExecutionListener
-	 */
-	private TestExecutionListener[] retrieveTestExecutionListeners(Class<?> clazz) {
-		List<TestExecutionListener> listeners = new ArrayList<TestExecutionListener>();
-		listeners.add(new DependencyInjectionTestExecutionListener());
-		return listeners.toArray(new TestExecutionListener[listeners.size()]);
-	}
+    /**
+     * {@link ContextConfiguration}に設定された情報でContextを初期化する。
+     * TODO:実装
+     */
+    protected void initByContextConfiguration() {
 
-	/**
-	 * BeforeClassの処理をフックして登録されている{@link TestExecutionListener}に処理を委譲する。
-	 * 
-	 * @throws Exception
-	 *             すべての例外発生時
-	 */
-	public void beforeTestClass() throws Exception {
-		final Class<?> testClass = getTestContext().getTestClass();
-		if (logger.isDebugEnabled()) {
-			logger.debug("beforeTestClass(): class [" + testClass + "]");
-		}
-		getTestContext().updateState(null, null, null);
-		for (TestExecutionListener testExecutionListener : getTestExecutionListeners()) {
-			try {
-				testExecutionListener.beforeTestClass(getTestContext());
-			} catch (Exception e) {
-				logger.warn("error TestExecutionListener:" + testExecutionListener);
-				throw e;
-			}
-		}
-	}
+    }
 
-	/**
-	 * テストインスタンスの生成処理をフックして登録されている{@link TestExecutionListener}に処理を委譲する。<br>
-	 * インスタンスの生成はテストメソッドごとに行われる。<br>
-	 * Beforeより前に処理をされる。
-	 * 
-	 * @param testInstance
-	 *            ベースとなるテストインスタンス
-	 * @throws Exception
-	 *             すべての例外発生時
-	 */
-	public void prepareTestInstance(Object testInstance) throws Exception {
-		if (logger.isDebugEnabled()) {
-			logger.debug("prepareTestInstance(): instance [" + testInstance + "]");
-		}
-		getTestContext().updateState(testInstance, null, null);
-		for (TestExecutionListener testExecutionListener : getTestExecutionListeners()) {
-			try {
-				testExecutionListener.prepareTestInstance(getTestContext());
-			} catch (Exception e) {
-				logger.warn("error TestExecutionListener:" + testExecutionListener);
-				throw e;
-			}
-		}
-	}
+    /**
+     * {@link ClassRule}が設定されたS2TestRuleにTestContextを設定する。
+     * @throws Exception すべての例外発生時
+     */
+    protected void prepareClassS2TestRules() {
+        List<S2TestRule> testRules = retrieveClassS2TestRules();
+        for (S2TestRule testRule : testRules) {
+            testRule.setTestContext(getTestContext());
+        }
+    }
 
-	/**
-	 * Beforeの処理をフックして登録されている{@link TestExecutionListener}に処理を委譲する。
-	 * 
-	 * @param testInstance
-	 *            テストインスタンス
-	 * @param testMethod
-	 *            テストメソッド
-	 * @throws Exception
-	 *             すべての例外発生時
-	 */
-	public void beforeTestMethod(Object testInstance, Method testMethod) throws Exception {
-		if (logger.isDebugEnabled()) {
-			logger.debug("beforeTestMethod(): instance [" + testInstance + "], method ["
-			        + testMethod + "]");
-		}
-		getTestContext().updateState(testInstance, testMethod, null);
-		for (TestExecutionListener testExecutionListener : getTestExecutionListeners()) {
-			try {
-				testExecutionListener.beforeTestMethod(getTestContext());
-			} catch (Exception e) {
-				logger.warn("error TestExecutionListener:" + testExecutionListener);
-				throw e;
-			}
-		}
-	}
+    /**
+     * テストインスタンスに対してPrepareInstanceRuleを適用する。
+     * @throws Exception すべての例外発生時
+     */
+    protected void applyPrepareInstanceRules() throws Exception {
+        List<S2PrepareInstanceRule> prepareRules =
+            createPrepareInstanceRules(getTestContext().getTestInstance());
+        for (S2PrepareInstanceRule rule : prepareRules) {
+            try {
+                rule.apply(getTestContext());
+            } catch (Exception e) {
+                logger.warn("error TestExecutionListener:" + rule);
+                throw e;
+            }
+        }
+    }
 
-	/**
-	 * Afterの処理をフックして登録されている{@link TestExecutionListener}に処理を委譲する。<br>
-	 * TestExecutionListenerは登録順番とは逆の順番で呼び出しを行う。<br>
-	 * TODO:例外をそのままスローして問題ないか確認。
-	 * 
-	 * @param testInstance
-	 *            テストインスタンス
-	 * @param testMethod
-	 *            テストメソッド
-	 * @param exception
-	 *            テストが期待している例外
-	 * @throws Exception
-	 *             すべての例外発生時
-	 */
-	public void afterTestMethod(Object testInstance, Method testMethod, Throwable exception)
-	        throws Exception {
-		if (logger.isDebugEnabled()) {
-			logger.debug("afterTestMethod(): instance [" + testInstance + "], method ["
-			        + testMethod + "], exception [" + exception + "]");
-		}
-		getTestContext().updateState(testInstance, testMethod, exception);
-		for (TestExecutionListener testExecutionListener : getReversedTestExecutionListeners()) {
-			try {
-				testExecutionListener.afterTestMethod(getTestContext());
-			} catch (Exception e) {
-				logger.warn("error TestExecutionListener:" + testExecutionListener);
-				throw e;
-			}
-		}
-	}
+    /**
+     * {@link Rule}が設定されたS2TestRuleにTestContextを設定する。
+     * @throws Exception すべての例外発生時
+     */
+    protected void prepareMethodS2TestRules() {
+        List<S2TestRule> testRules =
+            retrieveMethodS2TestRules(getTestContext().getTestInstance());
+        for (S2TestRule testRule : testRules) {
+            testRule.setTestContext(getTestContext());
+        }
+    }
 
-	/**
-	 * AfterClassの処理をフックして登録されている{@link TestExecutionListener}に処理を委譲する。<br>
-	 * TestExecutionListenerは登録順番とは逆の順番で呼び出しを行う。<br>
-	 * 
-	 * @throws Exception
-	 *             すべての例外発生時
-	 */
-	public void afterTestClass() throws Exception {
-		final Class<?> testClass = getTestContext().getTestClass();
-		if (logger.isDebugEnabled()) {
-			logger.debug("afterTestClass(): class [" + testClass + "]");
-		}
-		getTestContext().updateState(null, null, null);
+    /**
+     * PrepareInstanceRuleを取得する。
+     * @param target 対象オブジェクト
+     * @return 取得したルール
+     */
+    private List<S2PrepareInstanceRule> createPrepareInstanceRules(Object target) {
+        List<S2PrepareInstanceRule> result =
+            new ArrayList<S2PrepareInstanceRule>();
+        result.addAll(getDefaultPrepareInstanceRules());
+        result.addAll(retrievePrepareInstanceRules(target));
+        return result;
+    }
 
-		for (TestExecutionListener testExecutionListener : getReversedTestExecutionListeners()) {
-			try {
-				testExecutionListener.afterTestClass(getTestContext());
-			} catch (Exception e) {
-				logger.warn("error TestExecutionListener:" + testExecutionListener);
-				throw e;
-			}
-		}
-	}
+    /**
+     * デフォルトのPrepareInstanceRuleを返却する。
+     * @return デフォルトのS2PrepareInstanceRule
+     */
+    private List<S2PrepareInstanceRule> getDefaultPrepareInstanceRules() {
+        if (defaultPrepareInstanceRules == null) {
+            defaultPrepareInstanceRules =
+                new ArrayList<S2PrepareInstanceRule>();
+            defaultPrepareInstanceRules.add(new DependencyInjectionRule());
+        }
+        return defaultPrepareInstanceRules;
+    }
+
+    /**
+     * インスタンスに付与されているPrepareInstanceRuleを返却する。
+     * @param target 対象インスタンス
+     * @return 対象インスタンスに付与されているPrepareInstanceRule
+     */
+    private List<S2PrepareInstanceRule> retrievePrepareInstanceRules(
+            Object target) {
+        return getTestContext().getTestClass().getAnnotatedFieldValues(target,
+                PrepareInstanceRule.class,
+                S2PrepareInstanceRule.class);
+    }
+
+    /**
+     * インスタンスに設定されているS2TestRuleを抽出する。
+     * @param target
+     * @return
+     */
+    private List<S2TestRule> retrieveMethodS2TestRules(Object target) {
+        return getTestContext().getTestClass().getAnnotatedFieldValues(target,
+                Rule.class,
+                S2TestRule.class);
+    }
+
+    /**
+     * クラスに設定されているS2TestRuleを抽出する。
+     * @param target
+     * @return
+     */
+    private List<S2TestRule> retrieveClassS2TestRules() {
+        return getTestContext().getTestClass().getAnnotatedFieldValues(null,
+                ClassRule.class,
+                S2TestRule.class);
+    }
 }
