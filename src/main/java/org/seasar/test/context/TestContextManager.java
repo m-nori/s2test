@@ -10,7 +10,6 @@ import org.seasar.framework.log.Logger;
 import org.seasar.test.annotation.ContextConfiguration;
 import org.seasar.test.annotation.InstanceRule;
 import org.seasar.test.context.include.ContainerInclude;
-import org.seasar.test.rule.DependencyInjectionRule;
 import org.seasar.test.rule.S2InstanceRule;
 import org.seasar.test.rule.S2TestRule;
 
@@ -23,11 +22,14 @@ import org.seasar.test.rule.S2TestRule;
  * <li>テストの流れに合わせてTestExecutionListenerを呼び出す。</li>
  * </ul>
  * <p>
- * TODO:デフォルトのS2PrepareInstanceRuleの保持方法。
  *
  * @author m_nori
  */
 public class TestContextManager {
+    /** デフォルトのインスタンス生成ルール */
+    private static final String[] DEFAULT_PREPARE_INSTANCE_RULES_CLASS_NAMES =
+        new String[] { "org.seasar.test.rule.DependencyInjectionRule" };
+
     private static final Logger logger =
         Logger.getLogger(TestContextManager.class);
 
@@ -165,7 +167,19 @@ public class TestContextManager {
     private List<S2InstanceRule> getDefaultPrepareInstanceRules() {
         if (defaultPrepareInstanceRules == null) {
             defaultPrepareInstanceRules = new ArrayList<S2InstanceRule>();
-            defaultPrepareInstanceRules.add(new DependencyInjectionRule());
+            for (String className : DEFAULT_PREPARE_INSTANCE_RULES_CLASS_NAMES) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Class<? extends S2InstanceRule> clazz =
+                        (Class<? extends S2InstanceRule>) getClass().getClassLoader()
+                                .loadClass(className);
+                    defaultPrepareInstanceRules.add(clazz.newInstance());
+                } catch (Throwable e) {
+                    logger.warn("Could not load default PrepareInstanceRule class ["
+                        + className
+                        + "] ");
+                }
+            }
         }
         return defaultPrepareInstanceRules;
     }
