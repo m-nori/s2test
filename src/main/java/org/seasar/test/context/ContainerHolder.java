@@ -45,7 +45,7 @@ public class ContainerHolder {
      *
      * @param rootDicon 対象となるdiconファイル
      */
-    public void resetContainer(String rootDicon) {
+    public void destroyContainer(String rootDicon) {
         if (logger.isDebugEnabled()) {
             logger.debug("destroy container");
         }

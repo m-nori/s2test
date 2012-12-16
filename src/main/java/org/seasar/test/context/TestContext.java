@@ -47,7 +47,7 @@ public class TestContext {
         if (logger.isDebugEnabled()) {
             logger.debug("destroy container");
         }
-        containerHolder.resetContainer(rootDicon);
+        containerHolder.destroyContainer(rootDicon);
     }
 
     /**
